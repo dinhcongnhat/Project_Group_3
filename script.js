@@ -1,52 +1,179 @@
-var getWeighingResults = 0; //--> Variable to get weighing results in grams from ESP32.
-var Circular_Progress_Bar_Val = 0;
+/*
+    Web chỉnh lại phần box kết nối BLE sao cho nó to ra
+    Nút nhấn chỉnh cho to hơn và chữ dễ nhìn hơn
+    Có thể thêm background cho màu sao cho dễ nhìn
+    Phần hàng hoá hiển thị thêm ảnh và giá tiền của 1 cân 
+    Web bổ sung thêm 2 nút nhấn là Hold và unhold giá trị của cân
+    Nút nhấn gửi dữ liệu xuống ESP32 thông qua BLE để thực hiện các chức năng
+    VD: nút nhấn hiệu chuẩn thì nhấn trên web thì esp32 sẽ nhận được bản tin và sẽ hiệu chuẩn cân
+        nút nhấn hold, unhold thì dùng để giữ giá trị và bỏ giữ giá trị
+*/
+// BLE-related functionality
+// Cài đặt các biến và tham số
+const connectButton = document.getElementById('connectBleButton');
+const disconnectButton = document.getElementById('disconnectBleButton');
+const received_weight_value = document.getElementById('weight_value_label')
+const bleStateContainer = document.getElementById('bleState');
 
-// Processes the data received from the ESP32.
-if (!!window.EventSource) {
-    var source = new EventSource('/events');
-    
-    source.addEventListener('open', function(e) {
-        console.log("Events Connected");
-    }, false);
-    
-    source.addEventListener('error', function(e) {
-        if (e.target.readyState != EventSource.OPEN) {
-            console.log("Events Disconnected");
-        }
-    }, false);
-    
-    source.addEventListener('message', function(e) {
-        console.log("message", e.data);
-    }, false);
+var deviceName ='ESP32';
+var bleService = '19b10000-e8f2-537e-4f6c-d104768a1214';
+var ledCharacteristic = '19b10002-e8f2-537e-4f6c-d104768a1214';
+var Loadcell_Characteristic= '19b10001-e8f2-537e-4f6c-d104768a1214'; 
 
-    source.addEventListener('allDataJSON', function(e) {
-        console.log("allDataJSON", e.data);
-        
-        var obj = JSON.parse(e.data);
-        
-        getWeighingResults = obj.weight_In_g;
-        
-        if (getWeighingResults >= 0) Circular_Progress_Bar_Val = getWeighingResults;
-        
-        Convert();
-    }, false);
+var bleServer;
+var bleServiceFound;
+var sensorCharacteristicFound;
+
+var getWeighingResults = 0; //Biến lưu giá trị cân theo gram
+var Circular_Progress_Bar_Val = 0; // Biến lưu giá trị cho biểu đồ tròn
+
+received_weight_value.innerHTML = getWeighingResults + " kg";
+document.getElementById("price").innerHTML = "Giá: " + getWeighingResults + "k";
+
+// Nút nhấn kết nối BLE
+connectButton.addEventListener('click', (event) => {
+    if (isWebBluetoothEnabled()){
+        connectToDevice();
+    }
+});
+
+// Nút nhất ngắt kết nối BLE
+disconnectButton.addEventListener('click', disconnectDevice);
+
+// Kiểm tra Bluetooth đã có chưa
+function isWebBluetoothEnabled() {
+    if (!navigator.bluetooth) {
+        console.log("Web Bluetooth API is not available in this browser!");
+        bleStateContainer.innerHTML = "Web Bluetooth API is not available in this browser!";
+        return false
+    }
+    console.log('Web Bluetooth API supported in this browser.');
+    return true
 }
 
-// Call the Convert() function.
-Convert();
+// Kết nối BLE tới thiết bị
+function connectToDevice(){
+    console.log('Initializing Bluetooth...');
+    navigator.bluetooth.requestDevice({
+        filters: [{name: deviceName}],
+        optionalServices: [bleService]
+    })
+    .then(device => {
+        console.log('Device Selected:', device.name);
+        bleStateContainer.innerHTML = 'Kết nối tới thiết bị ' + device.name;
+        bleStateContainer.style.color = "#24af37";
+        device.addEventListener('gattservicedisconnected', onDisconnected);
+        return device.gatt.connect();
+    })
+    .then(gattServer =>{
+        bleServer = gattServer;
+        console.log("Connected to GATT Server");
+        return bleServer.getPrimaryService(bleService);
+    })
+    .then(service => {
+        bleServiceFound = service;
+        console.log("Service discovered:", service.uuid);
+        return service.getCharacteristic(sensorCharacteristic);
+    })
+    .then(characteristic => {
+        console.log("Characteristic discovered:", characteristic.uuid);
+        sensorCharacteristicFound = characteristic;
+        characteristic.addEventListener('characteristicvaluechanged', Handle_Weight_Change);
+        characteristic.startNotifications();
+        console.log("Notifications Started.");
+        return characteristic.readValue();
+    })
+    .then(value => {
+        console.log("Read value: ", value);
+        const decodedValue = new TextDecoder().decode(value);
+        console.log("Decoded value: ", decodedValue);
+        received_weight_value.innerHTML = decodedValue;
+    })
+    .catch(error => {
+        console.error('Connection failed!', error);
+    });
+}
 
-// Function to convert weighing results from gram units to oz and kg units.
-function Convert() {
-    var x = document.getElementById("units");
-    var i = x.selectedIndex;
-    
-    if (x.options[i].text == "kg") {
-        var kg_unit = getWeighingResults / 1000;
-        kg_unit = kg_unit.toFixed(3);
-        document.getElementById("conv").innerHTML = kg_unit + " kg";
+function onDisconnected(event){
+    console.log('Device Disconnected:', event.target.device.name);
+    bleStateContainer.innerHTML = "Device disconnected";
+    bleStateContainer.style.color = "#d13a30";
+
+    connectToDevice();
+}
+
+// Hiển thị giá trị cân nặng
+function Handle_Weight_Change(event){
+    getWeighingResults = new TextDecoder().decode(event.target.value);
+    console.log("Characteristic value changed: ", getWeighingResults);
+    if (getWeighingResults >= 0) Circular_Progress_Bar_Val = getWeighingResults;
+    Show_Weight();
+}
+
+// Ngắt kết nối với Bluetooth
+function disconnectDevice(){
+    console.log("Disconnect Device.");
+    if (bleServer && bleServer.connected) {
+        if (sensorCharacteristicFound) {
+            sensorCharacteristicFound.stopNotifications()
+                .then(() => {
+                    console.log("Notifications Stopped");
+                    return bleServer.disconnect();
+                })
+                .then(() => {
+                    console.log("Device Disconnected");
+                    bleStateContainer.innerHTML = "Web ngắt kết nối BLE";
+                    bleStateContainer.style.color = "#d13a30";
+
+                })
+                .catch(error => {
+                    console.log("An error occurred:", error);
+                });
+        } else {
+            console.log("No characteristic found to disconnect.");
+        }
+    } else {
+        // Throw an error if Bluetooth is not connected
+        console.error("Bluetooth is not connected.");
+        window.alert("Bluetooth is not connected.")
     }
 }
 
+// Tính toán giá tiền của món hàng
+function calculatePrice() {
+    var x = document.getElementById("goods");
+    var i = x.selectedIndex;
+    var weightInKg = getWeighingResults / 1000;  // Convert grams to kilograms
+    var pricePerKg;
+  
+    if (x.options[i].value === "pork") {
+      pricePerKg = 50;  // 50k per 1000g for pork
+    } else if (x.options[i].value === "vegetables") {
+      pricePerKg = 20;  // 20k per 1000g for vegetables
+    } else if (x.options[i].value === "fruit") {
+      pricePerKg = 30;  // 30k per 1000g for fruit
+    }
+  
+    var totalPrice = weightInKg * pricePerKg;
+    totalPrice = totalPrice.toFixed(2); // Round to two decimal places
+    document.getElementById("price").innerHTML = "Giá: " + totalPrice + "k";
+  }
+  
+function Show_Weight() {
+    var x = document.getElementById("units");
+    var i = x.selectedIndex;
+    
+    // chuyển đổi giá trị gram thành kg
+    if (x.options[i].text == "kg") {
+      var kg_unit = getWeighingResults / 1000;
+      kg_unit = kg_unit.toFixed(3);
+      document.getElementById("weight_value_label").innerHTML = kg_unit + " kg";
+    }
+  
+    calculatePrice();  // Call the price calculation function
+  }
+    
+// Hiển thị giá trị cân trên biểu đồ tròn
 // Displays the weighing value and displays a circular progress bar.
 var canvas = document.getElementById('myCanvas');
 var context = canvas.getContext('2d');
@@ -93,130 +220,3 @@ function progressBar(){
 function map( x,  in_min,  in_max,  out_min,  out_max){
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
-
-// XMLHttpRequest to submit data.
-function send_BTN_Cmd() {
-    var xhr = new XMLHttpRequest();
-    xhr.open("GET", "BTN_Comd?BTN_Tare=T", true);
-    xhr.send();
-}
-
-// BLE-related functionality
-const connectButton = document.getElementById('connectBleButton');
-const disconnectButton = document.getElementById('disconnectBleButton');
-
-var deviceName ='ESP32';
-var bleService = '19b10000-e8f2-537e-4f6c-d104768a1214';
-var ledCharacteristic = '19b10002-e8f2-537e-4f6c-d104768a1214';
-var sensorCharacteristic= '19b10001-e8f2-537e-4f6c-d104768a1214';
-
-var bleServer;
-var bleServiceFound;
-var sensorCharacteristicFound;
-
-connectButton.addEventListener('click', (event) => {
-    if (isWebBluetoothEnabled()){
-        connectToDevice();
-    }
-});
-
-disconnectButton.addEventListener('click', disconnectDevice);
-
-function isWebBluetoothEnabled() {
-    if (!navigator.bluetooth) {
-        console.log("Web Bluetooth API is not available in this browser!");
-        bleStateContainer.innerHTML = "Web Bluetooth API is not available in this browser!";
-        return false
-    }
-    console.log('Web Bluetooth API supported in this browser.');
-    return true
-}
-
-function connectToDevice(){
-    console.log('Initializing Bluetooth...');
-    navigator.bluetooth.requestDevice({
-        filters: [{name: deviceName}],
-        optionalServices: [bleService]
-    })
-    .then(device => {
-        console.log('Device Selected:', device.name);
-        bleStateContainer.innerHTML = 'Connected to device ' + device.name;
-        bleStateContainer.style.color = "#24af37";
-        device.addEventListener('gattservicedisconnected', onDisconnected);
-        return device.gatt.connect();
-    })
-    .then(gattServer =>{
-        bleServer = gattServer;
-        console.log("Connected to GATT Server");
-        return bleServer.getPrimaryService(bleService);
-    })
-    .then(service => {
-        bleServiceFound = service;
-        console.log("Service discovered:", service.uuid);
-        return service.getCharacteristic(sensorCharacteristic);
-    })
-    .then(characteristic => {
-        console.log("Characteristic discovered:", characteristic.uuid);
-        sensorCharacteristicFound = characteristic;
-        return sensorCharacteristicFound.startNotifications().then(_ => {
-            console.log('Notifications started.');
-            sensorCharacteristicFound.addEventListener('characteristicvaluechanged', handleSensorValueChanged);
-        });
-    })
-    .catch(error => {
-        console.error('Connection failed!', error);
-        bleStateContainer.innerHTML = "Failed to connect.";
-        bleStateContainer.style.color = "#d13a30";
-    });
-}
-
-function handleSensorValueChanged(event){
-    const value = event.target.value;
-    console.log('Received value from sensor:', value);
-}
-
-function disconnectDevice(){
-    if (!bleServer) {
-        console.log("Not connected to any device.");
-        return;
-    }
-    console.log("Disconnecting...");
-    bleServer.disconnect();
-}
-
-function onDisconnected(event) {
-    console.log('Device disconnected.');
-    bleStateContainer.innerHTML = 'Disconnected';
-    bleStateContainer.style.color = "#d13a30";
-}
-function calculatePrice() {
-    var x = document.getElementById("goods");
-    var i = x.selectedIndex;
-    var weightInKg = getWeighingResults / 1000;  // Convert grams to kilograms
-    var pricePerKg;
-  
-    if (x.options[i].value === "pork") {
-      pricePerKg = 50;  // 50k per 1000g for pork
-    } else if (x.options[i].value === "vegetables") {
-      pricePerKg = 20;  // 20k per 1000g for vegetables
-    } else if (x.options[i].value === "fruit") {
-      pricePerKg = 30;  // 30k per 1000g for fruit
-    }
-  
-    var totalPrice = weightInKg * pricePerKg;
-    totalPrice = totalPrice.toFixed(2); // Round to two decimal places
-    document.getElementById("price").innerHTML = "Giá: " + totalPrice + "k";
-  }
-  function Convert() {
-    var x = document.getElementById("units");
-    var i = x.selectedIndex;
-  
-    if (x.options[i].text == "kg") {
-      var kg_unit = getWeighingResults / 1000;
-      kg_unit = kg_unit.toFixed(3);
-      document.getElementById("conv").innerHTML = kg_unit + " kg";
-    }
-  
-    calculatePrice();  // Call the price calculation function
-  }
-    

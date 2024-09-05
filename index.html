@@ -16,7 +16,7 @@
     <select name="units" id="units" onchange="Convert()">
         <option value="oz">kg</option>
     </select>
-    <p style="font-size:20px;color:#800000;" id="conv"></p>
+    <p style="font-size:20px;color:#800000;" id="weight_value_label"></p>
     <label for="goods">Chọn loại hàng hóa:</label>
     <select name="goods" id="goods" onchange="calculatePrice()">
       <option value="pork">Thịt heo</option>
@@ -29,7 +29,7 @@
     <div class="box">
         <button id="connectBleButton">Kết nối tới thiết bị</button>
         <button id="disconnectBleButton">Ngắt kết nối</button>
-        <p>Trạng thái Blutooth: <strong><span id="bleState" style="color:#d13a30;">Đã ngắt kết nối</span></strong></p>
+        <p>Trạng thái Bluetooth: <strong><span id="bleState" style="color:#d13a30;">Đã ngắt kết nối</span></strong></p>
     </div>
 
     <script src="script.js"></script>
