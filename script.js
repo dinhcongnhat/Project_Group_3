@@ -18,7 +18,7 @@ const bleStateContainer = document.getElementById('bleState');
 var deviceName ='ESP32';
 var bleService = '19b10000-e8f2-537e-4f6c-d104768a1214';
 var ledCharacteristic = '19b10002-e8f2-537e-4f6c-d104768a1214';
-var Loadcell_Characteristic= '19b10001-e8f2-537e-4f6c-d104768a1214'; 
+var LoadCell_Characteristic = '19b10001-e8f2-537e-4f6c-d104768a1214'; 
 
 var bleServer;
 var bleServiceFound;
@@ -73,7 +73,7 @@ function connectToDevice(){
     .then(service => {
         bleServiceFound = service;
         console.log("Service discovered:", service.uuid);
-        return service.getCharacteristic(sensorCharacteristic);
+        return service.getCharacteristic(LoadCell_Characteristic);
     })
     .then(characteristic => {
         console.log("Characteristic discovered:", characteristic.uuid);
