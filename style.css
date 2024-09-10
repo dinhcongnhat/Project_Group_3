@@ -20,7 +20,7 @@ h1 {
 button {
     padding: 5px 10px;
     margin: 5px;
-    font-size: 10px;
+    font-size: auto;
     cursor: pointer;
     border: none;
     border-radius: 5px;
@@ -64,12 +64,36 @@ p {
 .box {
     background-color: white;
     border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    padding: 20px;
-    margin: 20px auto;
+    box-shadow: 0 0 10px rgba(220, 15, 15, 0.1);
+    padding: 10px;
+    margin: auto;
     max-width: 200px;
 }
 
 .box h2 {
     color: #333;
 }
+        /* Center the entire page content */
+        body {
+            display: flex;
+            justify-content: center; /* Horizontally centers the container */
+            align-items: center; /* Vertically centers the container */
+            height: 110vh; /* 100% of the viewport height */
+            margin: 0;
+        }
+
+        .container {
+            display: flex;
+            align-items: center; /* Aligns canvas and image vertically */
+            gap: 50px; /* Adds space between canvas and image */
+        }
+
+        /* Move canvas 100px to the right */
+        #myCanvas {
+            position: relative;
+            left: 130px; /* Move to the right by 100px */
+        }
+        #goodsImage{
+            position: relative;
+            left:100px
+        }

@@ -138,41 +138,62 @@ function disconnectDevice(){
         window.alert("Bluetooth is not connected.")
     }
 }
+async function sendBLECommand(command) {
+    if (bleCharacteristic) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(command);
+        await bleCharacteristic.writeValue(data);
+        console.log(`Sent command: ${command}`);
+    } else {
+        console.log('BLE device not connected');
+    }
+}
 
-// Tính toán giá tiền của món hàng
+function sendCalibrationCmd() {
+    console.log('Sending calibration command');
+    sendBLECommand('CALIBRATE'); // Send calibration command to ESP32
+}
+
+function sendHoldCmd() {
+    console.log('Sending hold command');
+    sendBLECommand('HOLD'); // Send hold command to ESP32
+}
+
+function sendUnholdCmd() {
+    console.log('Sending unhold command');
+    sendBLECommand('UNHOLD'); // Send unhold command to ESP32
+}
+//tính tiền món hàng
 function calculatePrice() {
     var x = document.getElementById("goods");
     var i = x.selectedIndex;
     var weightInKg = getWeighingResults / 1000;  // Convert grams to kilograms
     var pricePerKg;
-  
-    if (x.options[i].value === "pork") {
-      pricePerKg = 50;  // 50k per 1000g for pork
+    var imgSrc;
+
+    // Determine price and image based on selected goods
+    if (x.options[i].value === "none") {
+        pricePerKg = 0;  // 50k per 1000g for pork
+    }
+    else if (x.options[i].value === "pork") {
+        pricePerKg = 50000;  // 50k per 1000g for pork
+        imgSrc = "image/pork.jpg"; // Update with the actual path of the pork image
     } else if (x.options[i].value === "vegetables") {
-      pricePerKg = 20;  // 20k per 1000g for vegetables
+        pricePerKg = 20000;  // 20k per 1000g for vegetables
+        imgSrc = "image/vegetables.jpg"; // Update with the actual path of the vegetables image
     } else if (x.options[i].value === "fruit") {
-      pricePerKg = 30;  // 30k per 1000g for fruit
+        pricePerKg = 30000;  // 30k per 1000g for fruit
+        imgSrc = "image/fruit.jpg"; // Update with the actual path of the fruit image
     }
-  
+
     var totalPrice = weightInKg * pricePerKg;
-    totalPrice = totalPrice.toFixed(2); // Round to two decimal places
-    document.getElementById("price").innerHTML = "Giá: " + totalPrice + "k";
-  }
-  
-function Show_Weight() {
-    var x = document.getElementById("units");
-    var i = x.selectedIndex;
-    
-    // chuyển đổi giá trị gram thành kg
-    if (x.options[i].text == "kg") {
-      var kg_unit = getWeighingResults / 1000;
-      kg_unit = kg_unit.toFixed(3);
-      document.getElementById("weight_value_label").innerHTML = kg_unit + " kg";
-    }
-  
-    calculatePrice();  // Call the price calculation function
-  }
-    
+    totalPrice = totalPrice.toFixed(3); // Round to two decimal places
+    document.getElementById("price").innerHTML = "Giá: " + totalPrice + " VND";
+
+    // Update the image
+    document.getElementById("goodsImage").src = imgSrc;
+}
+
 // Hiển thị giá trị cân trên biểu đồ tròn
 // Displays the weighing value and displays a circular progress bar.
 var canvas = document.getElementById('myCanvas');

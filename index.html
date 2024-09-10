@@ -7,29 +7,41 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1 style="color:#00878F;font-family:consolas;">ESP32 - CÂN ĐIỆN TỬ NHÓM 3</h1>
-    <canvas id="myCanvas" width="220" height="200" style="border:2px solid #DCDCDC;border-radius: 25px;"></canvas>
-    <p>Min = 0 g &nbsp;&nbsp;&nbsp; Max = 5000 g</p>
-    <button type="button" onclick="send_BTN_Cmd()">Tere:</button>
-    <br><br>
-    <label for="units">Cân nặng: </label>
-    <select name="units" id="units" onchange="Convert()">
-        <option value="oz">kg</option>
-    </select>
-    <p style="font-size:20px;color:#800000;" id="weight_value_label"></p>
-    <label for="goods">Chọn loại hàng hóa:</label>
-    <select name="goods" id="goods" onchange="calculatePrice()">
-      <option value="pork">Thịt heo</option>
-      <option value="vegetables">Rau củ</option>
-      <option value="fruit">Trái cây</option>
-    </select>
-    <p style="font-size:20px;color:#800000;" id="price"></p>
-    
-    <!-- BLE Section -->
-    <div class="box">
-        <button id="connectBleButton">Kết nối tới thiết bị</button>
-        <button id="disconnectBleButton">Ngắt kết nối</button>
-        <p>Trạng thái Bluetooth: <strong><span id="bleState" style="color:#d13a30;">Đã ngắt kết nối</span></strong></p>
+    <div>
+        <h1 style="color:#00878F;">ESP32 - CÂN ĐIỆN TỬ NHÓM 3</h1>
+
+        <!-- Container for the canvas and image -->
+        <div class="container">
+            <canvas id="myCanvas" width="220" height="200" style="border:2px solid #DCDCDC;border-radius: 25px;"></canvas>
+            <img id="goodsImage" alt="Loại hàng hóa" width="220" height="200" style="border:0px; border-radius: 25px;">
+        </div>
+
+        <p>Min = 0 g &nbsp;&nbsp;&nbsp; Max = 5000 g</p> 
+        <button type="button" onclick="sendCalibrationCmd()">Hiệu chuẩn</button>
+        <button type="button" onclick="sendHoldCmd()">Giữ giá trị</button>
+        <button type="button" onclick="sendUnholdCmd()">Bỏ giá trị </button>
+        <br><br>
+        
+        <label for="units">Cân nặng:</label>
+        <select name="units" id="units" onchange="Convert()">
+            <option value="oz">kg</option>
+        </select>
+        <p style="font-size:20px;color:#800000;" id="weight_value_label"></p>
+        <label for="goods">Chọn loại hàng hóa:</label>
+        <select name="goods" id="goods" onchange="calculatePrice()">
+            <option value="none">Chọn</option>
+          <option value="pork">Thịt heo</option>
+          <option value="vegetables">Rau củ</option>
+          <option value="fruit">Trái cây</option>
+        </select>
+        <p style="font-size:20px;color:#800000;" id="price"></p>
+
+        <!-- BLE Section -->
+        <div class="box">
+            <button id="connectBleButton">Kết nối tới thiết bị</button>
+            <button id="disconnectBleButton">Ngắt kết nối</button>
+            <p>Trạng thái Bluetooth: <strong><span id="bleState" style="color:#d13a30;">Đã ngắt kết nối</span></strong></p>
+        </div>
     </div>
 
     <script src="script.js"></script>
